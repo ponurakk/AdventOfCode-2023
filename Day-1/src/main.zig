@@ -3,19 +3,8 @@ const ascii = @import("std").ascii;
 const unicode = @import("std").unicode;
 
 pub fn main() !void {
-    // const stdout_file = std.io.getStdOut().writer();
-    // var bw = std.io.bufferedWriter(stdout_file);
-    // const stdout = bw.writer();
-    // try stdout.print("Run `zig build test` to run the tests.\n", .{});
-    // try bw.flush(); // don't forget to flush!
-
-    try handle_file();
-}
-
-fn handle_file() !void {
     var file = std.fs.cwd().openFile("data.txt", .{ .mode = .read_only }) catch |err| {
-        std.debug.print("Error: {}\n", .{err});
-        return;
+        return std.debug.print("Error: {}\n", .{err});
     };
     defer file.close();
 
@@ -54,6 +43,5 @@ fn charToInt(number: i32) !i32 {
     var f1: u21 = @intCast(number);
     var num_utf: [1]u8 = undefined;
     _ = try unicode.utf8Encode(f1, &num_utf);
-    const num = try std.fmt.parseInt(i32, &num_utf, 10);
-    return num;
+    return try std.fmt.parseInt(i32, &num_utf, 10);
 }
