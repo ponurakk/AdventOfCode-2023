@@ -1,47 +1,100 @@
 const std = @import("std");
-const ascii = @import("std").ascii;
-const unicode = @import("std").unicode;
+const mem = std.mem;
+const ascii = std.ascii;
+const ArrayList = std.ArrayList;
 
 pub fn main() !void {
-    var file = std.fs.cwd().openFile("data.txt", .{ .mode = .read_only }) catch |err| {
-        return std.debug.print("Error: {}\n", .{err});
-    };
+    const allocator = std.heap.page_allocator;
+
+    const file = try std.fs.cwd().openFile("data.txt", .{ .mode = .read_only });
     defer file.close();
 
-    var buf_reader = std.io.bufferedReader(file.reader());
-    var in_stream = buf_reader.reader();
-    var buf: [1024]u8 = undefined;
+    const stat = try file.stat();
+    var content = try file.reader().readAllAlloc(allocator, stat.size);
+    var iterator = mem.tokenize(u8, content, "\n");
 
-    var total: i32 = 0;
+    var lines = ArrayList([]const u8).init(allocator);
 
-    while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-        var first_num: ?u8 = null;
-        var last_num: ?u8 = null;
+    while (iterator.next()) |line| {
+        try lines.append(line);
+    }
+
+    var input = try lines.toOwnedSlice();
+    defer allocator.free(input);
+
+    try getNumbers(input);
+}
+
+pub fn getNumbers(input: [][]const u8) !void {
+    var part1: usize = 0;
+
+    for (input) |line| {
+        var firstDigit: usize = 0;
+        var lastDigit: usize = 0;
+
+        getDigit(line, &firstDigit);
+        getDigit(line, &lastDigit);
+
+        part1 += firstDigit * 10 + lastDigit;
+    }
+
+    std.debug.print("Part 1: {}\n", .{part1});
+
+    var part2: usize = 0;
+    const numbers = [_][]const u8{ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine" };
+
+    for (input) |line| {
+        var firstDigit: usize = 0;
+        var index: usize = 0;
+
         for (line) |char| {
-            if (!ascii.isDigit(char)) continue;
+            if (ascii.isDigit(char)) {
+                firstDigit = char - '0';
+                break;
+            }
+            index += 1;
+        }
 
-            if (first_num == null) {
-                first_num = char;
-                last_num = char;
-            } else {
-                last_num = char;
+        for (numbers, 0..) |value, i| {
+            if (mem.indexOf(u8, line, value)) |pos| {
+                if (pos < index) {
+                    index = pos;
+                    firstDigit = i + 1;
+                }
             }
         }
 
-        var num1 = try charToInt(first_num orelse 0);
-        var num2 = try charToInt(last_num orelse 0);
+        var lastDigit: usize = 0;
+        var currentIndex: usize = 0;
+        var indexLast: usize = 0;
+        for (line) |char| {
+            if (ascii.isDigit(char)) {
+                lastDigit = char - '0';
+                indexLast = currentIndex;
+            }
+            currentIndex += 1;
+        }
 
-        const result = try std.fmt.bufPrint(&buf, "{}{}", .{ num1, num2 });
+        for (numbers, 0..) |value, i| {
+            if (mem.lastIndexOf(u8, line, value)) |pos| {
+                if (pos > indexLast) {
+                    indexLast = pos;
+                    lastDigit = i + 1;
+                }
+            }
+        }
 
-        const res = try std.fmt.parseInt(i32, result, 10);
-        total += res;
+        part2 += firstDigit * 10 + lastDigit;
     }
-    std.debug.print("{d}\n", .{total});
+
+    std.debug.print("Part 2: {}\n", .{part2});
 }
 
-fn charToInt(number: i32) !i32 {
-    var f1: u21 = @intCast(number);
-    var num_utf: [1]u8 = undefined;
-    _ = try unicode.utf8Encode(f1, &num_utf);
-    return try std.fmt.parseInt(i32, &num_utf, 10);
+fn getDigit(line: []const u8, digit: *usize) void {
+    for (line) |char| {
+        if (ascii.isDigit(char)) {
+            digit.* = char - '0';
+            break;
+        }
+    }
 }
