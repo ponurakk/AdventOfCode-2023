@@ -24,8 +24,6 @@ pub fn main() !void {
     var content = try file.reader().readAllAlloc(allocator, stat.size);
     var iterator = mem.tokenize(u8, content, "\n");
 
-    var lines = ArrayList([]const u8).init(allocator);
-
     var part1Sum: usize = 0;
     var part2Sum: usize = 0;
 
@@ -70,8 +68,6 @@ pub fn main() !void {
         }
 
         part2Sum += mostCubes.red * mostCubes.green * mostCubes.blue;
-
-        try lines.append(line);
     }
 
     std.debug.print("Part1: {}\n", .{part1Sum});
